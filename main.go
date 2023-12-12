@@ -91,7 +91,7 @@ func findUncompressedFiles(searchDirectory string) {
 
 	}
 	if sizeSumOfUncompressedFiles > 1024*1024*1024*100 {
-		fmt.Println("WARNING: The total size of the ", len(listOfUncompressedFiles)-1, " uncompressed files to be transferred is", sizeSumOfUncompressedFiles/1024/1024/1024, "GB. You might want to compress them before.")
+		fmt.Println("WARNING: The total size of the ", len(listOfUncompressedFiles)-1, " uncompressed files to be transferred is ", formatBytes(sizeSumOfUncompressedFiles), ". You might want to compress them before.")
 		createUncompressedFileList = true
 	}
 	if createUncompressedFileList {
