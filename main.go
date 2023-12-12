@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -26,8 +27,9 @@ func main() {
 
 	fmt.Printf("Moving %s\n\n", dirToMove)
 
-	fmt.Println("This tool will find all subdirectories with more than", MAX_FILES_PER_DIR, "files in them and package (tar) them before moving.")
+	fmt.Println("This tool will find all subdirectories with more than", MAX_FILES_PER_DIR, "files in them and package (tar) them before moving.\n")
 
+	findSamFiles(dirToMove)
 	getKeepDirsMessage, keepDirs := getKeepDirs()
 	fmt.Println(getKeepDirsMessage)
 
@@ -47,6 +49,21 @@ func main() {
 	projectId := getProjectId()
 
 	writeScriptFile(dirToMove, keepDirs, projectId, rsyncParameters)
+}
+
+func findSamFiles(dirToMove string) {
+	foundSamFiles := find(dirToMove, ".sam")
+
+	if len(foundSamFiles) > 0 {
+		fmt.Println(strings.Repeat("#", 80))
+		fmt.Println("WARNING!")
+		fmt.Println(strings.Repeat("#", 80))
+		fmt.Println("Found", len(foundSamFiles), ".sam files. Please consider removing them before doing the transfer!")
+		for _, samFile := range foundSamFiles {
+			fmt.Println(samFile)
+		}
+		fmt.Println(strings.Repeat("#", 80))
+	}
 }
 func getAutoDel() string {
 	autoDel := askForBinaryInput("Do you wish to automatically delete local files after copying them? [y/N]", "N")
@@ -182,6 +199,20 @@ func isValidLocalDirectory(path string) (string, error) {
 		return "", errors.New("Path is not a directory: " + path)
 	}
 	return path, nil
+}
+
+func find(root, ext string) []string {
+	var a []string
+	filepath.WalkDir(root, func(s string, d fs.DirEntry, e error) error {
+		if e != nil {
+			return e
+		}
+		if filepath.Ext(d.Name()) == ext {
+			a = append(a, s)
+		}
+		return nil
+	})
+	return a
 }
 
 func writeScriptFile(dirToMove, keepDirs, projectId string, transferParameters RsyncParameters) {
