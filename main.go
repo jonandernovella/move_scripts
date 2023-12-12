@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -95,6 +96,9 @@ func findUncompressedFiles(searchDirectory string) {
 		createUncompressedFileList = true
 	}
 	if createUncompressedFileList {
+		sort.Slice(listOfFileInfos, func(i, j int) bool {
+			return listOfFileInfos[i].Size > listOfFileInfos[j].Size
+		})
 		umcompressedLog, err := os.Create(fmt.Sprintf("./transfer_%s.uncompressed_files.log", filepath.Base(searchDirectory)))
 		defer umcompressedLog.Close()
 		if err != nil {
