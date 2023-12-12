@@ -62,7 +62,7 @@ func main() {
 func findUncompressedFiles(searchDirectory string) {
 	cmd := exec.Command("find", searchDirectory, "-type", "f",
 		"(", "-name", "*.sam", "-o", "-name", "*.vcf", "-o", "-name", "*.fq",
-		"-o", "-name", "*.fastq", "-o", "-name", "*.fasta", "-o", "-name", "*.fa", ")")
+		"-o", "-name", "*.fastq", "-o", "-name", "*.fasta", "-o", "-name", "*.txt", "-o", "-name", "*.fa", ")")
 
 	output, err := cmd.Output()
 	if err != nil {
