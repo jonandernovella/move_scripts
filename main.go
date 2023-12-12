@@ -44,7 +44,9 @@ func main() {
 
 	rsyncParameters := RsyncParameters{username, targetHost, targetDir, numConns}
 
-	writeScriptFile(dirToMove, keepDirs, rsyncParameters)
+	projectId := getProjectId()
+
+	writeScriptFile(dirToMove, keepDirs, projectId, rsyncParameters)
 }
 func getAutoDel() string {
 	autoDel := askForBinaryInput("Do you wish to automatically delete local files after copying them? [y/N]", "N")
@@ -91,6 +93,10 @@ func getTargetHost() string {
 	return getInput("Which system should data be moved to? [default: dardel.pdc.kth.se]", "dardel.pdc.kth.se")
 }
 
+func getProjectId() string {
+	return getInput("uppmax project id (ex. nais2023-22-999)", "UPPMAX_PROJECT_ID")
+}
+
 func getTargetDirectory(targetHost string) string {
 	targetDir := ""
 	for targetDir == "" {
@@ -111,7 +117,7 @@ func getUsername(targetHost string) string {
 	for username == "" {
 		username = getInput("What is your user name on "+targetHost+"?", os.Getenv("USER"))
 		if len(username) > 25 {
-			fmt.Println("Error: User name must be 25 characters or less.")
+			fmt.Println("Error: Username must be 25 characters or less.")
 			username = ""
 		}
 	}
@@ -157,7 +163,6 @@ func askForBinaryInput(prompt, defaultValue string) string {
 
 func isValidLocalDirectory(path string) (string, error) {
 	isAbsolute := filepath.IsAbs(path)
-	newAbsPath := ""
 	err := error(nil)
 
 	if !isAbsolute {
@@ -165,7 +170,7 @@ func isValidLocalDirectory(path string) (string, error) {
 		if err != nil {
 			return "", errors.New("Error converting path to absolute: " + err.Error())
 		}
-		newAbsPath = absPath
+		path = absPath
 	}
 
 	fileInfo, err := os.Stat(path)
@@ -176,10 +181,10 @@ func isValidLocalDirectory(path string) (string, error) {
 	if fileInfo.IsDir() == false {
 		return "", errors.New("Path is not a directory: " + path)
 	}
-	return newAbsPath, nil
+	return path, nil
 }
 
-func writeScriptFile(dirToMove, keepDirs string, transferParameters RsyncParameters) {
+func writeScriptFile(dirToMove, keepDirs, projectId string, transferParameters RsyncParameters) {
 	scriptName := "transfer_" + filepath.Base(dirToMove) + ".sh"
 	scriptFile, err := os.Create(scriptName)
 
@@ -193,7 +198,7 @@ func writeScriptFile(dirToMove, keepDirs string, transferParameters RsyncParamet
 	scriptFile.WriteString("#SBATCH -p core\n")
 	scriptFile.WriteString("#SBATCH -n 1\n")
 	scriptFile.WriteString("#SBATCH -J " + scriptName + "\n")
-	scriptFile.WriteString("#SBATCH -A YOUR_PROJECT\n")
+	scriptFile.WriteString("#SBATCH -A " + projectId + "\n")
 	scriptFile.WriteString("#SBATCH -t 7-00:00:00\n\n")
 
 	scriptFile.WriteString("find " + dirToMove + " -mindepth 1 -maxdepth 2 -not -path '*/.*' -type d -links " + fmt.Sprint(MAX_FILES_PER_DIR) + " > large_directories.txt\n\n")
