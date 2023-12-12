@@ -78,7 +78,7 @@ func getDirectoryToMove() string {
 			os.Exit(1)
 		}
 		dirToMove = getInput("Move which directory? [default: this one]", workingDir)
-		err = isValidLocalDirectory(dirToMove)
+		dirToMove, err = isValidLocalDirectory(dirToMove)
 		if err != nil {
 			fmt.Printf("Error: %s\n", err.Error())
 			dirToMove = ""
@@ -155,26 +155,28 @@ func askForBinaryInput(prompt, defaultValue string) string {
 	return response
 }
 
-func isValidLocalDirectory(path string) error {
+func isValidLocalDirectory(path string) (string, error) {
 	isAbsolute := filepath.IsAbs(path)
+	newAbsPath := ""
+	err := error(nil)
 
 	if !isAbsolute {
 		absPath, err := filepath.Abs(path)
 		if err != nil {
-			return errors.New("Error converting path to absolute: " + err.Error())
+			return "", errors.New("Error converting path to absolute: " + err.Error())
 		}
-		path = absPath
+		newAbsPath = absPath
 	}
 
 	fileInfo, err := os.Stat(path)
 	if os.IsNotExist(err) {
-		return errors.New("Path does not exist: " + path)
+		return "", errors.New("Path does not exist: " + path)
 	}
 
 	if fileInfo.IsDir() == false {
-		return errors.New("Path is not a directory: " + path)
+		return "", errors.New("Path is not a directory: " + path)
 	}
-	return nil
+	return newAbsPath, nil
 }
 
 func writeScriptFile(dirToMove, keepDirs string, transferParameters RsyncParameters) {
