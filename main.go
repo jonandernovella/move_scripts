@@ -4,8 +4,8 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -18,18 +18,25 @@ type RsyncParameters struct {
 	numConns   string
 }
 
+type FileInfo struct {
+	Name string
+	Size int64
+}
+
 const MAX_FILES_PER_DIR int = 100000
 
 func main() {
+
 	fmt.Println("Welcome to this data transfer tool")
 
 	dirToMove := getDirectoryToMove()
 
 	fmt.Printf("Moving %s\n\n", dirToMove)
 
-	fmt.Println("This tool will find all subdirectories with more than", MAX_FILES_PER_DIR, "files in them and package (tar) them before moving.\n")
+	fmt.Println("This tool will find all subdirectories with more than", MAX_FILES_PER_DIR, "files in them and package (tar) them before moving.")
 
-	findSamFiles(dirToMove)
+	findUncompressedFiles(dirToMove)
+
 	getKeepDirsMessage, keepDirs := getKeepDirs()
 	fmt.Println(getKeepDirsMessage)
 
@@ -51,20 +58,57 @@ func main() {
 	writeScriptFile(dirToMove, keepDirs, projectId, rsyncParameters)
 }
 
-func findSamFiles(dirToMove string) {
-	foundSamFiles := find(dirToMove, ".sam")
+func findUncompressedFiles(searchDirectory string) {
+	cmd := exec.Command("find", searchDirectory, "-type", "f",
+		"(", "-name", "*.sam", "-o", "-name", "*.vcf", "-o", "-name", "*.fq",
+		"-o", "-name", "*.fastq", "-o", "-name", "*.fasta", "-o", "-name", "*.fa", ")")
 
-	if len(foundSamFiles) > 0 {
-		fmt.Println(strings.Repeat("#", 80))
-		fmt.Println("WARNING!")
-		fmt.Println(strings.Repeat("#", 80))
-		fmt.Println("Found", len(foundSamFiles), ".sam files. Please consider removing them before doing the transfer!")
-		for _, samFile := range foundSamFiles {
-			fmt.Println(samFile)
-		}
-		fmt.Println(strings.Repeat("#", 80))
+	output, err := cmd.Output()
+	if err != nil {
+		fmt.Println("Error running find command:", err)
+		os.Exit(1)
 	}
+	listOfUncompressedFiles := strings.Split(string(output), "\n")
+	sizeSumOfUncompressedFiles := int64(0)
+	createUncompressedFileList := false
+	listOfFileInfos := make([]FileInfo, 0)
+
+	for _, file := range listOfUncompressedFiles {
+		if file == "" {
+			continue
+		}
+		statObject, err := os.Stat(file)
+		if err != nil {
+			fmt.Println("Error getting file size:", err)
+			os.Exit(1)
+		}
+		if statObject.Size() > 1024*1024*1024 {
+			fmt.Printf("WARNING: %s is %s. This may take a while to transfer.\n", file, formatBytes(statObject.Size()))
+			createUncompressedFileList = true
+		}
+		sizeSumOfUncompressedFiles += statObject.Size()
+		listOfFileInfos = append(listOfFileInfos, FileInfo{file, statObject.Size()})
+
+	}
+	if sizeSumOfUncompressedFiles > 1024*1024*1024*100 {
+		fmt.Println("WARNING: The total size of the ", len(listOfUncompressedFiles)-1, " uncompressed files to be transferred is", sizeSumOfUncompressedFiles/1024/1024/1024, "GB. You might want to compress them before.")
+		createUncompressedFileList = true
+	}
+	if createUncompressedFileList {
+		umcompressedLog, err := os.Create(fmt.Sprintf("./transfer_%s.uncompressed_files.log", filepath.Base(searchDirectory)))
+		defer umcompressedLog.Close()
+		if err != nil {
+			fmt.Println("Error creating file list:", err)
+			os.Exit(1)
+		}
+
+		for _, fileInfo := range listOfFileInfos {
+			umcompressedLog.WriteString(fmt.Sprintf("%s\t%s\n", fileInfo.Name, formatBytes(fileInfo.Size)))
+		}
+	}
+
 }
+
 func getAutoDel() string {
 	autoDel := askForBinaryInput("Do you wish to automatically delete local files after copying them? [y/N]", "N")
 	var autoDelMessage string
@@ -201,18 +245,17 @@ func isValidLocalDirectory(path string) (string, error) {
 	return path, nil
 }
 
-func find(root, ext string) []string {
-	var a []string
-	filepath.WalkDir(root, func(s string, d fs.DirEntry, e error) error {
-		if e != nil {
-			return e
-		}
-		if filepath.Ext(d.Name()) == ext {
-			a = append(a, s)
-		}
-		return nil
-	})
-	return a
+func formatBytes(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), "KMGTPE"[exp])
 }
 
 func writeScriptFile(dirToMove, keepDirs, projectId string, transferParameters RsyncParameters) {

@@ -9,4 +9,4 @@ find /Users/jon/Documents/nbis/score/move_scripts -mindepth 1 -maxdepth 2 -not -
 
 xargs -a large_directories.txt -I {} tar -czvf {}.tar.gz {}
 
-rsync -cavz --progress --parallel=10 --exclude-from=large_directories.txt /Users/jon/Documents/nbis/score/move_scripts jon@dardel.pdc.kth.se:/lala | tee rsync_log.txt
+rsync -cavz --progress --parallel=10 --exclude-from=large_directories.txt /Users/jon/Documents/nbis/score/move_scripts jon@dardel.pdc.kth.se:/ll | tee rsync_log.txt
