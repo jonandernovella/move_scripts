@@ -22,6 +22,54 @@ const MAX_FILES_PER_DIR int = 100000
 func main() {
 	fmt.Println("Welcome to this data transfer tool")
 
+	dirToMove := getDirectoryToMove()
+
+	fmt.Printf("Moving %s\n\n", dirToMove)
+
+	fmt.Println("This tool will find all subdirectories with more than", MAX_FILES_PER_DIR, "files in them and package (tar) them before moving.")
+
+	getKeepDirsMessage, keepDirs := getKeepDirs()
+	fmt.Println(getKeepDirsMessage)
+
+	autoDelMessage := getAutoDel()
+	fmt.Println(autoDelMessage)
+
+	targetHost := getTargetHost()
+
+	targetDir := getTargetDirectory(targetHost)
+
+	username := getUsername(targetHost)
+
+	numConns := getNumConnections()
+
+	rsyncParameters := RsyncParameters{username, targetHost, targetDir, numConns}
+
+	writeScriptFile(dirToMove, keepDirs, rsyncParameters)
+}
+func getAutoDel() string {
+	autoDel := askForBinaryInput("Do you wish to automatically delete local files after copying them? [y/N]", "N")
+	var autoDelMessage string
+	if autoDel == "Y" {
+		autoDelMessage = "We will delete files that have been copying."
+	} else {
+		autoDelMessage = "We will keep files here after copying."
+	}
+	return autoDelMessage
+}
+
+func getKeepDirs() (string, string) {
+	keepDirs := askForBinaryInput("Should we discard the large subdirectories after packaging? [Y/n]", "Y")
+
+	var keepDirsMessage string
+	if keepDirs == "N" {
+		keepDirsMessage = "We will discard the big directories after packaging."
+	} else {
+		keepDirsMessage = "We will keep the big directories."
+	}
+	return keepDirsMessage, keepDirs
+}
+
+func getDirectoryToMove() string {
 	dirToMove := ""
 	for dirToMove == "" {
 		workingDir, err := os.Getwd()
@@ -36,33 +84,14 @@ func main() {
 			dirToMove = ""
 		}
 	}
+	return dirToMove
+}
 
-	fmt.Printf("Moving %s\n\n", dirToMove)
+func getTargetHost() string {
+	return getInput("Which system should data be moved to? [default: dardel.pdc.kth.se]", "dardel.pdc.kth.se")
+}
 
-	fmt.Println("This tool will find all subdirectories with more than", MAX_FILES_PER_DIR, "files in them and package (tar) them before moving.")
-
-	keepDirs := askForBinaryInput("Should we discard the large subdirectories after packaging? [Y/n]", "Y")
-
-	var keepDirsMessage string
-	if keepDirs == "N" {
-		keepDirsMessage = "We will discard the big directories after packaging."
-	} else {
-		keepDirsMessage = "We will keep the big directories."
-	}
-	fmt.Println(keepDirsMessage)
-
-	autoDel := askForBinaryInput("Do you wish to automatically delete local files after copying them? [y/N]", "N")
-
-	var autoDelMessage string
-	if autoDel == "Y" {
-		autoDelMessage = "We will delete files that have been copying."
-	} else {
-		autoDelMessage = "We will keep files here after copying."
-	}
-	fmt.Println(autoDelMessage)
-
-	targetHost := getInput("Which system should data be moved to? [default: dardel.pdc.kth.se]", "dardel.pdc.kth.se")
-
+func getTargetDirectory(targetHost string) string {
 	targetDir := ""
 	for targetDir == "" {
 		targetDir = getInput("Where on "+targetHost+" should data be moved to?", "")
@@ -74,9 +103,22 @@ func main() {
 			targetDir = ""
 		}
 	}
+	return targetDir
+}
 
-	username := getInput("What is your user name on "+targetHost+"?", os.Getenv("USER"))
+func getUsername(targetHost string) string {
+	username := ""
+	for username == "" {
+		username = getInput("What is your user name on "+targetHost+"?", os.Getenv("USER"))
+		if len(username) > 25 {
+			fmt.Println("Error: User name must be 25 characters or less.")
+			username = ""
+		}
+	}
+	return username
+}
 
+func getNumConnections() string {
 	numConns := ""
 	for numConns == "" {
 		numConns = getInput("How many parallel rsync connections? [10]", "10")
@@ -85,10 +127,7 @@ func main() {
 			numConns = ""
 		}
 	}
-
-	RsyncParameters := RsyncParameters{username, targetHost, targetDir, numConns}
-
-	writeScriptFile(dirToMove, keepDirs, RsyncParameters)
+	return numConns
 }
 
 func getInput(prompt, defaultValue string) string {
