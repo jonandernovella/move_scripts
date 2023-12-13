@@ -15,9 +15,7 @@ $ movefiles [check|start]
 - `check`: Runs in check mode. Data will not be transferred; instead, the tool will identify uncompressed (large) files in the specified directory.
 - `start`: will ask you for some information about the data transfer and create a SLURM script so you can perform the transfer.
 
-## Getting Started
-
-### 1. Running in Check Mode
+## Running in Check Mode
 
 In check mode, the tool checks for uncompressed files with certain extensions and warns you if they take up a lot of space. To run in check mode:
 
