@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -36,7 +37,8 @@ func main() {
 
 	fmt.Println("This tool will find all subdirectories with more than", MAX_FILES_PER_DIR, "files in them and package (tar) them before moving.")
 
-	findUncompressedFiles(dirToMove)
+	uncompressedFileExtensions := []string{".sam", ".vcf", ".fq", ".fastq", ".fasta", ".txt", ".fa"}
+	findUncompressedFiles(dirToMove, uncompressedFileExtensions)
 
 	getKeepDirsMessage, keepDirs := getKeepDirs()
 	fmt.Println(getKeepDirsMessage)
@@ -59,58 +61,55 @@ func main() {
 	writeScriptFile(dirToMove, keepDirs, projectId, rsyncParameters)
 }
 
-func findUncompressedFiles(searchDirectory string) {
-	cmd := exec.Command("find", searchDirectory, "-type", "f",
-		"(", "-name", "*.sam", "-o", "-name", "*.vcf", "-o", "-name", "*.fq",
-		"-o", "-name", "*.fastq", "-o", "-name", "*.fasta", "-o", "-name", "*.txt", "-o", "-name", "*.fa", ")")
-
-	output, err := cmd.Output()
-	if err != nil {
-		fmt.Println("Error running find command:", err)
-		os.Exit(1)
-	}
-	listOfUncompressedFiles := strings.Split(string(output), "\n")
-	sizeSumOfUncompressedFiles := int64(0)
-	createUncompressedFileList := false
+func findUncompressedFiles(root string, extensions []string) {
 	listOfFileInfos := make([]FileInfo, 0)
+	sizeSumOfUncompressedFiles := int64(0)
+	createUncompressedFileLog := false
 
-	for _, file := range listOfUncompressedFiles {
-		if file == "" {
-			continue
+	filepath.WalkDir(root, func(fileName string, d fs.DirEntry, e error) error {
+		if e != nil {
+			return e
 		}
-		statObject, err := os.Stat(file)
-		if err != nil {
-			fmt.Println("Error getting file size:", err)
-			os.Exit(1)
+		if slices.Contains(extensions, filepath.Ext(d.Name())) {
+			info, err := d.Info()
+			if err != nil {
+				fmt.Println("Error getting file size:", err)
+				os.Exit(1)
+			}
+			fileSize := info.Size()
+			if fileSize > 1024*1024*1024 {
+				fmt.Printf("WARNING: %s is %s. This may take a while to transfer.\n", fileName, formatBytes(fileSize))
+				createUncompressedFileLog = true
+			}
+			listOfFileInfos = append(listOfFileInfos, FileInfo{fileName, fileSize})
+			sizeSumOfUncompressedFiles += fileSize
 		}
-		if statObject.Size() > 1024*1024*1024 {
-			fmt.Printf("WARNING: %s is %s. This may take a while to transfer.\n", file, formatBytes(statObject.Size()))
-			createUncompressedFileList = true
-		}
-		sizeSumOfUncompressedFiles += statObject.Size()
-		listOfFileInfos = append(listOfFileInfos, FileInfo{file, statObject.Size()})
-
-	}
+		return nil
+	})
 	if sizeSumOfUncompressedFiles > 1024*1024*1024*100 {
-		fmt.Println("WARNING: The total size of the ", len(listOfUncompressedFiles)-1, " uncompressed files to be transferred is ", formatBytes(sizeSumOfUncompressedFiles), ". You might want to compress them before.")
-		createUncompressedFileList = true
+		fmt.Println("WARNING: The total size of the ", len(listOfFileInfos)-1, " uncompressed files to be transferred is ", formatBytes(sizeSumOfUncompressedFiles), ". You might want to compress them before.")
+		createUncompressedFileLog = true
 	}
-	if createUncompressedFileList {
+	if createUncompressedFileLog {
 		sort.Slice(listOfFileInfos, func(i, j int) bool {
 			return listOfFileInfos[i].Size > listOfFileInfos[j].Size
 		})
-		umcompressedLog, err := os.Create(fmt.Sprintf("./transfer_%s.uncompressed_files.log", filepath.Base(searchDirectory)))
-		defer umcompressedLog.Close()
-		if err != nil {
-			fmt.Println("Error creating file list:", err)
-			os.Exit(1)
-		}
-
-		for _, fileInfo := range listOfFileInfos {
-			umcompressedLog.WriteString(fmt.Sprintf("%s\t%s\n", fileInfo.Name, formatBytes(fileInfo.Size)))
-		}
+		logName := fmt.Sprintf("./transfer_%s.uncompressed_files.log", filepath.Base(root))
+		createFileLog(listOfFileInfos, logName)
 	}
+}
 
+func createFileLog(listOfFileInfos []FileInfo, logName string) {
+
+	umcompressedLog, err := os.Create(logName)
+	defer umcompressedLog.Close()
+	if err != nil {
+		fmt.Println("Error creating file list:", err)
+		os.Exit(1)
+	}
+	for _, fileInfo := range listOfFileInfos {
+		umcompressedLog.WriteString(fmt.Sprintf("%s\t%s\n", fileInfo.Name, formatBytes(fileInfo.Size)))
+	}
 }
 
 func getAutoDel() string {
