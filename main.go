@@ -28,6 +28,28 @@ type FileInfo struct {
 const MAX_FILES_PER_DIR int = 100000
 
 func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Usage: movefiles [check|start]")
+		os.Exit(1)
+	}
+
+	command := os.Args[1]
+
+	switch command {
+	case "check":
+		fmt.Println("Running in check mode, data will NOT be transferred.")
+		dirToMove := getDirectoryToMove()
+		uncompressedFileExtensions := []string{".sam", ".vcf", ".fq", ".fastq", ".fasta", ".txt", ".fa"}
+		findUncompressedFiles(dirToMove, uncompressedFileExtensions)
+	case "start":
+		start()
+	default:
+		fmt.Println("Unknown command:", command)
+		os.Exit(1)
+	}
+}
+
+func start() {
 
 	fmt.Println("Welcome to this data transfer tool")
 
@@ -36,9 +58,6 @@ func main() {
 	fmt.Printf("Moving %s\n\n", dirToMove)
 
 	fmt.Println("This tool will find all subdirectories with more than", MAX_FILES_PER_DIR, "files in them and package (tar) them before moving.")
-
-	uncompressedFileExtensions := []string{".sam", ".vcf", ".fq", ".fastq", ".fasta", ".txt", ".fa"}
-	findUncompressedFiles(dirToMove, uncompressedFileExtensions)
 
 	getKeepDirsMessage, keepDirs := getKeepDirs()
 	fmt.Println(getKeepDirsMessage)
@@ -149,7 +168,7 @@ func getDirectoryToMove() string {
 			fmt.Printf("Error getting working directory: %s\n", err.Error())
 			os.Exit(1)
 		}
-		dirToMove = getInput("Move which directory? [default: this one]", workingDir)
+		dirToMove = getInput("Which directory should be transferred? [default: this one]", workingDir)
 		dirToMove, err = isValidLocalDirectory(dirToMove)
 		if err != nil {
 			fmt.Printf("Error: %s\n", err.Error())
