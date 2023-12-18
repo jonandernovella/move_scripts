@@ -78,8 +78,8 @@ func findUncompressedFiles(root string, extensions []string) {
 			fmt.Printf("Error accessing a path %q: %v\n", fileName, e)
 			return e
 		}
-		fmt.Printf("Checking %s\n", d.Name())
 		if slices.Contains(extensions, filepath.Ext(d.Name())) {
+			createUncompressedFileLog = true
 			info, err := d.Info()
 			if err != nil {
 				fmt.Println("Error getting file size:", err)
@@ -88,7 +88,6 @@ func findUncompressedFiles(root string, extensions []string) {
 			fileSize := info.Size()
 			if fileSize > 1024*1024*1024 {
 				fmt.Printf("WARNING: %s is %s. This may take a while to transfer.\n", fileName, formatBytes(fileSize))
-				createUncompressedFileLog = true
 			}
 			listOfFileInfos = append(listOfFileInfos, FileInfo{fileName, fileSize})
 			sizeSumOfUncompressedFiles += fileSize
