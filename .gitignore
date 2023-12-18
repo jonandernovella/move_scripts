@@ -1,0 +1,5 @@
+darsync
+*.log
+*.vcf
+*.sam
+*.sh
