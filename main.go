@@ -214,7 +214,7 @@ func getUsername(targetHost string) string {
 }
 
 func collectUsername(targetHost string) string {
-	username := getInput("What is your user name on "+targetHost+"?", os.Getenv("USER"))
+	username := getInput("What is your user name on "+targetHost+"?", "")
 	if len(username) > 25 {
 		fmt.Println("Error: Username must be 25 characters or less.")
 		username = ""
