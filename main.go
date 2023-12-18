@@ -16,7 +16,6 @@ type RsyncParameters struct {
 	userName   string
 	targetHost string
 	targetDir  string
-	numConns   string
 }
 
 type FileInfo struct {
@@ -26,7 +25,7 @@ type FileInfo struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: movefiles [check|start]")
+		fmt.Println("Usage: darsync [check|gen]")
 		os.Exit(1)
 	}
 
@@ -34,22 +33,21 @@ func main() {
 
 	switch command {
 	case "check":
-		fmt.Println("Running in check mode, data will NOT be transferred.")
 		dirToMove := getDirectoryToMove()
 		fmt.Printf("Checking %s\n\n", dirToMove)
 		uncompressedFileExtensions := []string{".sam", ".vcf", ".fq", ".fastq", ".fasta", ".txt", ".fa"}
 		findUncompressedFiles(dirToMove, uncompressedFileExtensions)
-	case "start":
-		start()
+	case "gen":
+		gen()
 	default:
 		fmt.Println("Unknown command:", command)
 		os.Exit(1)
 	}
 }
 
-func start() {
+func gen() {
 
-	fmt.Println("Welcome to this data transfer tool")
+	fmt.Println("This script will generate a SLURM script to transfer data to Dardel.")
 
 	dirToMove := getDirectoryToMove()
 
@@ -59,9 +57,7 @@ func start() {
 
 	username := getUsername(targetHost)
 
-	numConns := getNumConnections()
-
-	rsyncParameters := RsyncParameters{username, targetHost, targetDir, numConns}
+	rsyncParameters := RsyncParameters{username, targetHost, targetDir}
 
 	projectId := getProjectId()
 
@@ -149,7 +145,7 @@ func getTargetHost() string {
 }
 
 func getProjectId() string {
-	return getInput("uppmax project id (ex. nais2023-22-999)", "UPPMAX_PROJECT_ID")
+	return getInput("uppmax project id to run the migration job (ex. nais2023-22-999)", "UPPMAX_PROJECT_ID")
 }
 
 func getTargetDirectory(targetHost string) string {
@@ -255,7 +251,7 @@ func writeScriptFile(dirToMove, projectId string, transferParameters RsyncParame
 	scriptFile.WriteString("#SBATCH -A " + projectId + "\n")
 	scriptFile.WriteString("#SBATCH -t 7-00:00:00\n\n")
 
-	scriptFile.WriteString("rsync -cavz --progress --parallel=" + fmt.Sprint(transferParameters.numConns) + " --exclude-from=large_directories.txt " + dirToMove + " " + transferParameters.userName + "@" + transferParameters.targetHost + ":" + transferParameters.targetDir + " | tee rsync_log.txt\n")
+	scriptFile.WriteString("rsync -cavz --progress " + dirToMove + " " + transferParameters.userName + "@" + transferParameters.targetHost + ":" + transferParameters.targetDir + " | tee rsync_log.txt\n")
 
 	fmt.Println("\nWhen you are ready, edit", scriptName, "to set the correct project ID and run \"sbatch", scriptName, "\".")
 }

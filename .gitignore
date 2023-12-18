@@ -1,4 +1,4 @@
-movefiles
+darsync
 *.log
 *.vcf
 *.sam
