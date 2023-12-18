@@ -10,7 +10,6 @@ import (
 	"slices"
 	"sort"
 	"strconv"
-	"strings"
 )
 
 type RsyncParameters struct {
@@ -24,8 +23,6 @@ type FileInfo struct {
 	Name string
 	Size int64
 }
-
-const MAX_FILES_PER_DIR int = 100000
 
 func main() {
 	if len(os.Args) < 2 {
@@ -56,16 +53,6 @@ func start() {
 
 	dirToMove := getDirectoryToMove()
 
-	fmt.Printf("Moving %s\n\n", dirToMove)
-
-	fmt.Println("This tool will find all subdirectories with more than", MAX_FILES_PER_DIR, "files in them and package (tar) them before moving.")
-
-	getKeepDirsMessage, keepDirs := getKeepDirs()
-	fmt.Println(getKeepDirsMessage)
-
-	autoDelMessage := getAutoDel()
-	fmt.Println(autoDelMessage)
-
 	targetHost := getTargetHost()
 
 	targetDir := getTargetDirectory(targetHost)
@@ -78,7 +65,7 @@ func start() {
 
 	projectId := getProjectId()
 
-	writeScriptFile(dirToMove, keepDirs, projectId, rsyncParameters)
+	writeScriptFile(dirToMove, projectId, rsyncParameters)
 }
 
 func findUncompressedFiles(root string, extensions []string) {
@@ -137,29 +124,6 @@ func createFileLog(listOfFileInfos []FileInfo, logName string) {
 		umcompressedLog.WriteString(fmt.Sprintf("%s\t%s\n", fileInfo.Name, formatBytes(fileInfo.Size)))
 	}
 	fmt.Print("A list of uncompressed files has been created in ", logName, ".\n")
-}
-
-func getAutoDel() string {
-	autoDel := askForBinaryInput("Do you wish to automatically delete local files after copying them? [y/N]", "N")
-	var autoDelMessage string
-	if autoDel == "Y" {
-		autoDelMessage = "We will delete files that have been copying."
-	} else {
-		autoDelMessage = "We will keep files here after copying."
-	}
-	return autoDelMessage
-}
-
-func getKeepDirs() (string, string) {
-	keepDirs := askForBinaryInput("Should we discard the large subdirectories after packaging? [Y/n]", "Y")
-
-	var keepDirsMessage string
-	if keepDirs == "N" {
-		keepDirsMessage = "We will discard the big directories after packaging."
-	} else {
-		keepDirsMessage = "We will keep the big directories."
-	}
-	return keepDirsMessage, keepDirs
 }
 
 func getDirectoryToMove() string {
@@ -238,20 +202,6 @@ func getInput(prompt, defaultValue string) string {
 	return input
 }
 
-func askForBinaryInput(prompt, defaultValue string) string {
-	response := ""
-	for {
-		response = strings.ToUpper(getInput(prompt, defaultValue))
-
-		if response == "Y" || response == "N" {
-			break
-		} else {
-			fmt.Println("Please enter either 'Y' or 'N'.")
-		}
-	}
-	return response
-}
-
 func getAbsoluteDirectory(path string) (string, error) {
 	isAbsolute := filepath.IsAbs(path)
 	err := error(nil)
@@ -288,7 +238,7 @@ func formatBytes(size int64) string {
 	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), "KMGTPE"[exp])
 }
 
-func writeScriptFile(dirToMove, keepDirs, projectId string, transferParameters RsyncParameters) {
+func writeScriptFile(dirToMove, projectId string, transferParameters RsyncParameters) {
 	scriptName := "transfer_" + filepath.Base(dirToMove) + ".sh"
 	scriptFile, err := os.Create(scriptName)
 
@@ -304,14 +254,6 @@ func writeScriptFile(dirToMove, keepDirs, projectId string, transferParameters R
 	scriptFile.WriteString("#SBATCH -J " + scriptName + "\n")
 	scriptFile.WriteString("#SBATCH -A " + projectId + "\n")
 	scriptFile.WriteString("#SBATCH -t 7-00:00:00\n\n")
-
-	scriptFile.WriteString("find " + dirToMove + " -mindepth 1 -maxdepth 2 -not -path '*/.*' -type d -links " + fmt.Sprint(MAX_FILES_PER_DIR) + " > large_directories.txt\n\n")
-
-	scriptFile.WriteString("xargs -a large_directories.txt -I {} tar -czvf {}.tar.gz {}\n\n")
-
-	if keepDirs == "N" {
-		scriptFile.WriteString("xargs -a large_directories.txt -I{} rm -rf {}\n\n")
-	}
 
 	scriptFile.WriteString("rsync -cavz --progress --parallel=" + fmt.Sprint(transferParameters.numConns) + " --exclude-from=large_directories.txt " + dirToMove + " " + transferParameters.userName + "@" + transferParameters.targetHost + ":" + transferParameters.targetDir + " | tee rsync_log.txt\n")
 

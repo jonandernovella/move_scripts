@@ -27,10 +27,6 @@ This will prompt you for various details required for the transfer:
 
 - **Directory to Transfer**: Specify the directory you want to transfer.
 
-- **Auto-Delete Option**: Choose whether to automatically delete local files after copying.
-
-- **Keep Large Directories**: Choose whether to discard large subdirectories after packaging.
-
 - **Target Host**: Specify the destination system (default: dardel.pdc.kth.se).
 
 - **Target Directory**: Specify the destination directory on the target host.
