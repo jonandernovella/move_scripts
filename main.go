@@ -164,12 +164,7 @@ func getProjectId() string {
 func getPrivateKey() string {
 	privateKeyPath := ""
 	for privateKeyPath == "" {
-		privateKeyPath := getInput("Which private key would you like to use?", "~/.ssh/id_rsa")
-		_, err := os.Stat(privateKeyPath)
-		if os.IsNotExist(err) {
-			fmt.Printf("Error: %s\n", errors.New("Private key does not exist: "+privateKeyPath))
-			privateKeyPath = ""
-		}
+		privateKeyPath = collectPrivateKey()
 	}
 	privateKeyAbsPath, err := filepath.Abs(privateKeyPath)
 	if err != nil {
@@ -179,17 +174,33 @@ func getPrivateKey() string {
 	return privateKeyAbsPath
 }
 
+func collectPrivateKey() string {
+	home := os.Getenv("HOME")
+	privateKeyPath := getInput("Which private key would you like to use?", fmt.Sprintf("%s/.ssh/id_rsa", home))
+	_, err := os.Stat(privateKeyPath)
+	if os.IsNotExist(err) {
+		fmt.Printf("Error: %s\n", errors.New("Private key does not exist: "+privateKeyPath))
+		privateKeyPath = ""
+	}
+	return privateKeyPath
+}
+
 func getTargetDirectory(targetHost string) string {
 	targetDir := ""
 	for targetDir == "" {
-		targetDir = getInput("Where on "+targetHost+" should data be moved to?", "")
+		targetDir = collectTargetDir(targetHost)
+	}
+	return targetDir
+}
 
-		isAbsolute := filepath.IsAbs(targetDir)
+func collectTargetDir(targetHost string) string {
+	targetDir := getInput("Where on "+targetHost+" should data be moved to?", "")
 
-		if !isAbsolute {
-			fmt.Printf("Error: %s\n", errors.New("Path is not absolute: "+targetDir))
-			targetDir = ""
-		}
+	isAbsolute := filepath.IsAbs(targetDir)
+
+	if !isAbsolute {
+		fmt.Printf("Error: %s\n", errors.New("Path is not absolute: "+targetDir))
+		targetDir = ""
 	}
 	return targetDir
 }
@@ -197,11 +208,16 @@ func getTargetDirectory(targetHost string) string {
 func getUsername(targetHost string) string {
 	username := ""
 	for username == "" {
-		username = getInput("What is your user name on "+targetHost+"?", os.Getenv("USER"))
-		if len(username) > 25 {
-			fmt.Println("Error: Username must be 25 characters or less.")
-			username = ""
-		}
+		username = collectUsername(targetHost)
+	}
+	return username
+}
+
+func collectUsername(targetHost string) string {
+	username := getInput("What is your user name on "+targetHost+"?", os.Getenv("USER"))
+	if len(username) > 25 {
+		fmt.Println("Error: Username must be 25 characters or less.")
+		username = ""
 	}
 	return username
 }
@@ -270,7 +286,7 @@ func writeScriptFile(dirToMove, projectId string, transferParameters RsyncParame
 	scriptFile.WriteString("#SBATCH -A " + projectId + "\n")
 	scriptFile.WriteString("#SBATCH -t 7-00:00:00\n\n")
 
-	scriptFile.WriteString("rsync -cavz -e " + "'ssh -i " + transferParameters.privateKey + "' --progress " + dirToMove + " " + transferParameters.userName + "@" + transferParameters.targetHost + ":" + transferParameters.targetDir + " | tee " + lib.Name + "_" + filepath.Base(dirToMove) + "\n")
+	scriptFile.WriteString("rsync -cavz -e " + "'ssh -i " + transferParameters.privateKey + "' --progress " + dirToMove + " " + transferParameters.userName + "@" + transferParameters.targetHost + ":" + transferParameters.targetDir + " | tee " + lib.Name + "_" + filepath.Base(dirToMove) + ".rsync_log\n")
 
 	fmt.Println("\nWhen you are ready, edit", scriptName, "to set the correct project ID and run \"sbatch", scriptName, "\".")
 }
