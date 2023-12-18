@@ -10,6 +10,7 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 type RsyncParameters struct {
@@ -100,11 +101,16 @@ func findUncompressedFiles(root string, extensions []string) {
 		createUncompressedFileLog = true
 	}
 	if createUncompressedFileLog {
+		fmt.Println(strings.Repeat("#", 80))
+		fmt.Println("WARNING: Uncompressed files found. A log file containing a list of uncompressed files will be created.")
+		fmt.Println(strings.Repeat("#", 80))
 		sort.Slice(listOfFileInfos, func(i, j int) bool {
 			return listOfFileInfos[i].Size > listOfFileInfos[j].Size
 		})
 		logName := fmt.Sprintf("./transfer_%s.uncompressed_files.log", filepath.Base(root))
 		createFileLog(listOfFileInfos, logName)
+	} else {
+		fmt.Println("No uncompressed files found.")
 	}
 }
 
