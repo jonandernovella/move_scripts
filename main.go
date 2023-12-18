@@ -4,19 +4,20 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
-	"strings"
 )
 
 type RsyncParameters struct {
 	userName   string
 	targetHost string
 	targetDir  string
+	privateKey string
 }
 
 type FileInfo struct {
@@ -24,9 +25,16 @@ type FileInfo struct {
 	Size int64
 }
 
+type Lib struct {
+	Name        string
+	InputSource io.Reader
+}
+
+var lib = Lib{"darsync", os.Stdin}
+
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: darsync [check|gen]")
+		fmt.Println("Usage: " + lib.Name + " [check|gen]")
 		os.Exit(1)
 	}
 
@@ -58,7 +66,9 @@ func gen() {
 
 	username := getUsername(targetHost)
 
-	rsyncParameters := RsyncParameters{username, targetHost, targetDir}
+	privateKey := getPrivateKey()
+
+	rsyncParameters := RsyncParameters{username, targetHost, targetDir, privateKey}
 
 	projectId := getProjectId()
 
@@ -101,13 +111,11 @@ func findUncompressedFiles(root string, extensions []string) {
 		createUncompressedFileLog = true
 	}
 	if createUncompressedFileLog {
-		fmt.Println(strings.Repeat("#", 80))
 		fmt.Println("WARNING: Uncompressed files found. A log file containing a list of uncompressed files will be created.")
-		fmt.Println(strings.Repeat("#", 80))
 		sort.Slice(listOfFileInfos, func(i, j int) bool {
 			return listOfFileInfos[i].Size > listOfFileInfos[j].Size
 		})
-		logName := fmt.Sprintf("./transfer_%s.uncompressed_files.log", filepath.Base(root))
+		logName := fmt.Sprintf("./%s_%s.uncompressed_files.log", lib.Name, filepath.Base(root))
 		createFileLog(listOfFileInfos, logName)
 	} else {
 		fmt.Println("No uncompressed files found.")
@@ -154,6 +162,24 @@ func getProjectId() string {
 	return getInput("uppmax project id to run the migration job (ex. nais2023-22-999)", "UPPMAX_PROJECT_ID")
 }
 
+func getPrivateKey() string {
+	privateKeyPath := ""
+	for privateKeyPath == "" {
+		privateKeyPath := getInput("Which private key would you like to use?", "~/.ssh/id_rsa")
+		_, err := os.Stat(privateKeyPath)
+		if os.IsNotExist(err) {
+			fmt.Printf("Error: %s\n", errors.New("Private key does not exist: "+privateKeyPath))
+			privateKeyPath = ""
+		}
+	}
+	privateKeyAbsPath, err := filepath.Abs(privateKeyPath)
+	if err != nil {
+		fmt.Printf("Error converting path to absolute: %s\n", err.Error())
+		os.Exit(1)
+	}
+	return privateKeyAbsPath
+}
+
 func getTargetDirectory(targetHost string) string {
 	targetDir := ""
 	for targetDir == "" {
@@ -195,7 +221,7 @@ func getNumConnections() string {
 
 func getInput(prompt, defaultValue string) string {
 	fmt.Printf("%s [%s]: ", prompt, defaultValue)
-	scanner := bufio.NewScanner(os.Stdin)
+	scanner := bufio.NewScanner(lib.InputSource)
 	scanner.Scan()
 	input := scanner.Text()
 	if input == "" {
@@ -241,7 +267,7 @@ func formatBytes(size int64) string {
 }
 
 func writeScriptFile(dirToMove, projectId string, transferParameters RsyncParameters) {
-	scriptName := "transfer_" + filepath.Base(dirToMove) + ".sh"
+	scriptName := lib.Name + "_" + filepath.Base(dirToMove) + ".sh"
 	scriptFile, err := os.Create(scriptName)
 
 	if err != nil {
@@ -257,7 +283,7 @@ func writeScriptFile(dirToMove, projectId string, transferParameters RsyncParame
 	scriptFile.WriteString("#SBATCH -A " + projectId + "\n")
 	scriptFile.WriteString("#SBATCH -t 7-00:00:00\n\n")
 
-	scriptFile.WriteString("rsync -cavz --progress " + dirToMove + " " + transferParameters.userName + "@" + transferParameters.targetHost + ":" + transferParameters.targetDir + " | tee rsync_log.txt\n")
+	scriptFile.WriteString("rsync -cavz -e " + "'ssh -i " + transferParameters.privateKey + "' --progress " + dirToMove + " " + transferParameters.userName + "@" + transferParameters.targetHost + ":" + transferParameters.targetDir + " | tee " + lib.Name + "_" + filepath.Base(dirToMove) + "\n")
 
 	fmt.Println("\nWhen you are ready, edit", scriptName, "to set the correct project ID and run \"sbatch", scriptName, "\".")
 }
