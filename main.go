@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
-	"strconv"
 )
 
 type RsyncParameters struct {
@@ -205,18 +204,6 @@ func getUsername(targetHost string) string {
 		}
 	}
 	return username
-}
-
-func getNumConnections() string {
-	numConns := ""
-	for numConns == "" {
-		numConns = getInput("How many parallel rsync connections? [10]", "10")
-		if _, err := strconv.Atoi(numConns); err != nil {
-			fmt.Println("Invalid input. Please enter a valid number.")
-			numConns = ""
-		}
-	}
-	return numConns
 }
 
 func getInput(prompt, defaultValue string) string {
