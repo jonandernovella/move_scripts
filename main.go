@@ -39,6 +39,7 @@ func main() {
 	case "check":
 		fmt.Println("Running in check mode, data will NOT be transferred.")
 		dirToMove := getDirectoryToMove()
+		fmt.Printf("Checking %s\n\n", dirToMove)
 		uncompressedFileExtensions := []string{".sam", ".vcf", ".fq", ".fastq", ".fasta", ".txt", ".fa"}
 		findUncompressedFiles(dirToMove, uncompressedFileExtensions)
 	case "start":
@@ -135,6 +136,7 @@ func createFileLog(listOfFileInfos []FileInfo, logName string) {
 	for _, fileInfo := range listOfFileInfos {
 		umcompressedLog.WriteString(fmt.Sprintf("%s\t%s\n", fileInfo.Name, formatBytes(fileInfo.Size)))
 	}
+	fmt.Print("A list of uncompressed files has been created in ", logName, ".\n")
 }
 
 func getAutoDel() string {
