@@ -35,6 +35,8 @@ This will prompt you for various details required for the transfer:
 
 - **Project ID**: Enter the UPPMAX project ID (e.g., nais2023-22-999).
 
+- **Private key**: Enter the path to the private key in order to connect to the Target Host (Dardel).
+
 The command generates a Bash script (`transfer_<directory>.sh`) based on your inputs. This script can be edited to set the correct project ID. To execute the script, use the following command:
 
 ```bash
