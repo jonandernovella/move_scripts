@@ -78,6 +78,7 @@ func findUncompressedFiles(root string, extensions []string) {
 			fmt.Printf("Error accessing a path %q: %v\n", fileName, e)
 			return e
 		}
+		fmt.Printf("Checking %s\n", d.Name())
 		if slices.Contains(extensions, filepath.Ext(d.Name())) {
 			info, err := d.Info()
 			if err != nil {
