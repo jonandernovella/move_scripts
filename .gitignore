@@ -1,0 +1,5 @@
+movefiles
+*.log
+*.vcf
+*.sam
+*.sh
