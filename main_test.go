@@ -24,7 +24,6 @@ func TestGetTargetHost(t *testing.T) {
 func TestGetProjectId(t *testing.T) {
 	goodInput := "good_project_id"
 	lib.InputSource = bytes.NewBufferString(goodInput)
-	os.Setenv("UPPMAX_PROJECT_ID", "good_input")
 	projectId := getProjectId()
 
 	if projectId != goodInput {
@@ -34,11 +33,11 @@ func TestGetProjectId(t *testing.T) {
 }
 
 func TestGetTargetDirectory(t *testing.T) {
-	goodInput := "/good/target_dir"
-	lib.InputSource = bytes.NewBufferString(goodInput)
+	absolutePath := "/good/target_dir"
+	lib.InputSource = bytes.NewBufferString(absolutePath)
 	targetDir := collectTargetDir("test_host")
-	if targetDir != goodInput {
-		t.Errorf("getTargetDirectory() = %s; want %s", targetDir, goodInput)
+	if targetDir != absolutePath {
+		t.Errorf("getTargetDirectory() = %s; want %s", targetDir, absolutePath)
 	}
 	relativePath := "bad_target_dir"
 	lib.InputSource = bytes.NewBufferString(relativePath)
