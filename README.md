@@ -6,13 +6,11 @@
 
 This command-line tool is designed to simplify the process of transferring data from one cluster to another. Specifically, it facilitates the transfer of data from Rackham to Dardel.
 
-## Building the tool
+## Prerequisites
 
-After cloning the repository and changing directory, you may run:
+### Register your public key
 
-```bash
-$ go build
-```
+Visit the following [link](https://www.pdc.kth.se/support/documents/login/ssh_login.html) and follow the instructions to get access.
 
 ## Usage
 
