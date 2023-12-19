@@ -6,6 +6,26 @@ import (
 	"testing"
 )
 
+func TestGetDirectoryToMove(t *testing.T) {
+	badDir := "/test/dir/bad"
+	lib.InputSource = bytes.NewBufferString(badDir)
+	dirToMove := collectDirectoryToMove()
+	if dirToMove != "" {
+		t.Errorf("getDirectoryToMove() = %s; want %s", dirToMove, badDir)
+	}
+	goodDir := "/dev"
+	lib.InputSource = bytes.NewBufferString(goodDir)
+	dirToMove = collectDirectoryToMove()
+	if dirToMove != goodDir {
+		t.Errorf("getDirectoryToMove() = %s; want %s", dirToMove, goodDir)
+	}
+	file := "/dev/null"
+	lib.InputSource = bytes.NewBufferString(file)
+	dirToMove = collectDirectoryToMove()
+	if dirToMove != "" {
+		t.Errorf("getDirectoryToMove() = %s; want %s", dirToMove, "")
+	}
+}
 func TestGetTargetHost(t *testing.T) {
 	testInput := "test_host"
 	lib.InputSource = bytes.NewBufferString(testInput)

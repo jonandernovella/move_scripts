@@ -138,17 +138,22 @@ func createFileLog(listOfFileInfos []FileInfo, logName string) {
 func getDirectoryToMove() string {
 	dirToMove := ""
 	for dirToMove == "" {
-		workingDir, err := os.Getwd()
-		if err != nil {
-			fmt.Printf("Error getting working directory: %s\n", err.Error())
-			os.Exit(1)
-		}
-		dirToMove = getInput("Which directory should be transferred? [default: this one]", workingDir)
-		dirToMove, err = getAbsoluteDirectory(dirToMove)
-		if err != nil {
-			fmt.Printf("Error: %s\n", err.Error())
-			dirToMove = ""
-		}
+		dirToMove = collectDirectoryToMove()
+	}
+	return dirToMove
+}
+
+func collectDirectoryToMove() string {
+	workingDir, err := os.Getwd()
+	if err != nil {
+		fmt.Printf("Error getting working directory: %s\n", err.Error())
+		os.Exit(1)
+	}
+	dirToMove := getInput("Which directory should be transferred? [default: this one]", workingDir)
+	dirToMove, err = getAbsoluteDirectory(dirToMove)
+	if err != nil {
+		fmt.Printf("Error: %s\n", err.Error())
+		dirToMove = ""
 	}
 	return dirToMove
 }
