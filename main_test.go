@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -104,6 +105,35 @@ func TestGetPrivateKey(t *testing.T) {
 	privateKey = badLib.collectPrivateKey()
 	if privateKey != "" {
 		t.Errorf("getPrivateKey() = %s; want %s", privateKey, "")
+	}
+}
+
+func TestGetAbsoluteDirectory(t *testing.T) {
+	absPath, _ := filepath.Abs(".")
+	path, err := getAbsoluteDirectory(absPath)
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if path != absPath {
+		t.Errorf("Expected %v, got %v", absPath, path)
+	}
+
+	path, err = getAbsoluteDirectory(".")
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+	if path != absPath {
+		t.Errorf("Expected %v, got %v", absPath, path)
+	}
+
+	_, err = getAbsoluteDirectory("/path/does/not/exist")
+	if err == nil {
+		t.Errorf("Expected error, got nil")
+	}
+
+	_, err = getAbsoluteDirectory("/dev/null")
+	if err == nil {
+		t.Errorf("Expected error, got nil")
 	}
 }
 
