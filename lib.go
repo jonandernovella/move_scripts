@@ -160,10 +160,10 @@ func (lib Lib) getInput(prompt, defaultValue string) string {
 	return input
 }
 
-func (lib Lib) checkFileSizes(root string, extensions []string) {
-	listOfFileInfos, sizeSumOfUncompressedFiles, err := lib.findUncompressedFiles(root, extensions)
+func (lib Lib) checkFileSizes(dir string, extensions []string) {
+	listOfFileInfos, sizeSumOfUncompressedFiles, err := lib.findUncompressedFiles(dir, extensions)
 	if err != nil {
-		fmt.Printf("Error walking the path %q: %v\n", root, err)
+		fmt.Printf("Error walking the path %q: %v\n", dir, err)
 		fmt.Println("Aborting transfer!")
 		os.Exit(1)
 	}
@@ -171,12 +171,12 @@ func (lib Lib) checkFileSizes(root string, extensions []string) {
 	lib.checkTotalSize(len(listOfFileInfos)-1, sizeSumOfUncompressedFiles)
 }
 
-func (lib Lib) findUncompressedFiles(root string, extensions []string) ([]FileInfo, int64, error) {
+func (lib Lib) findUncompressedFiles(dir string, extensions []string) ([]FileInfo, int64, error) {
 	listOfFileInfos := make([]FileInfo, 0)
 	sizeSumOfUncompressedFiles := int64(0)
 	createUncompressedFileLog := false
 
-	err := filepath.WalkDir(root, func(fileName string, d fs.DirEntry, e error) error {
+	err := filepath.WalkDir(dir, func(fileName string, d fs.DirEntry, e error) error {
 		if e != nil {
 			fmt.Printf("Error accessing a path %q: %v\n", fileName, e)
 			return e
@@ -201,7 +201,7 @@ func (lib Lib) findUncompressedFiles(root string, extensions []string) ([]FileIn
 		sort.Slice(listOfFileInfos, func(i, j int) bool {
 			return listOfFileInfos[i].Size > listOfFileInfos[j].Size
 		})
-		lib.createFileLog(listOfFileInfos)
+		lib.createFileLog(listOfFileInfos, dir)
 	} else {
 		fmt.Println("No uncompressed files found.")
 	}
@@ -221,9 +221,9 @@ func (lib Lib) checkTotalSize(numberOfFiles int, sizeSumOfUncompressedFiles int6
 	}
 }
 
-func (lib Lib) createFileLog(listOfFileInfos []FileInfo) {
+func (lib Lib) createFileLog(listOfFileInfos []FileInfo, dirToMove string) {
 
-	logName := fmt.Sprintf("./%s_%s.uncompressed_files.log", lib.Name, filepath.Base(lib.HomeDir))
+	logName := fmt.Sprintf("./%s_%s.uncompressed_files.log", lib.Name, filepath.Base(dirToMove))
 
 	umcompressedLog, err := os.Create(logName)
 	defer umcompressedLog.Close()
@@ -238,7 +238,7 @@ func (lib Lib) createFileLog(listOfFileInfos []FileInfo) {
 }
 
 func (lib Lib) writeScriptFile(dirToMove, projectId string, transferParameters RsyncParameters) {
-	scriptName := lib.Name + "_" + filepath.Base(lib.HomeDir) + ".sh"
+	scriptName := lib.Name + "_" + filepath.Base(dirToMove) + ".sh"
 	scriptFile, err := os.Create(scriptName)
 
 	if err != nil {
