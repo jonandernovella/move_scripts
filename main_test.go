@@ -1,108 +1,76 @@
 package main
 
 import (
-	"bytes"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
-func getLib(inputString string) Lib {
+func getLib(reader io.Reader) Lib {
 	return Lib{
 		Name:        "darsync",
 		HomeDir:     os.Getenv("HOME"),
-		InputSource: bytes.NewBufferString(inputString),
+		InputSource: reader,
 	}
 }
 
-func TestGetDirectoryToMove(t *testing.T) {
+var lib = getLib(strings.NewReader(""))
+
+func TestValidateDirectoryToMove(t *testing.T) {
 	badDir := "/test/dir/bad"
-	badLib := getLib(badDir)
-	dirToMove := badLib.collectDirectoryToMove()
+	dirToMove := lib.validateDirectoryToMove(badDir)
 	if dirToMove != "" {
 		t.Errorf("getDirectoryToMove() = %s; want %s", dirToMove, badDir)
 	}
 	goodDir := "/dev"
-	goodLib := getLib(goodDir)
-	dirToMove = goodLib.collectDirectoryToMove()
+	dirToMove = lib.validateDirectoryToMove(goodDir)
 	if dirToMove != goodDir {
 		t.Errorf("getDirectoryToMove() = %s; want %s", dirToMove, goodDir)
 	}
 	file := "/dev/null"
-	fileLib := getLib(file)
-	dirToMove = fileLib.collectDirectoryToMove()
+	dirToMove = lib.validateDirectoryToMove(file)
 	if dirToMove != "" {
 		t.Errorf("getDirectoryToMove() = %s; want %s", dirToMove, "")
 	}
 }
-func TestGetTargetHost(t *testing.T) {
-	testInput := "test_host"
-	testLib := getLib(testInput)
-	host := testLib.getTargetHost()
-	if host != testInput {
-		t.Errorf("getTargetHost() = %s; want %s", host, testInput)
-	}
-	emptyInput := ""
-	emptyLib := getLib(emptyInput)
-	host = emptyLib.getTargetHost()
-	if host != "dardel.pdc.kth.se" {
-		t.Errorf("getTargetHost() = %s; want %s", host, "dardel.pdc.kth.se")
-	}
-}
 
-func TestGetProjectId(t *testing.T) {
-	goodInput := "good_project_id"
-	lib := getLib(goodInput)
-	projectId := lib.getProjectId()
-
-	if projectId != goodInput {
-		t.Errorf("getProjectId() = %s; want %s", projectId, goodInput)
-	}
-
-}
-
-func TestGetTargetDirectory(t *testing.T) {
+func TestValidateTargetDir(t *testing.T) {
 	absolutePath := "/good/target_dir"
-	absLib := getLib(absolutePath)
-	targetDir := absLib.collectTargetDir("test_host")
+	targetDir := lib.validateTargetDir(absolutePath)
 	if targetDir != absolutePath {
 		t.Errorf("getTargetDirectory() = %s; want %s", targetDir, absolutePath)
 	}
 	relativePath := "bad_target_dir"
-	relLib := getLib(relativePath)
-	targetDir = relLib.collectTargetDir("test_host")
+	targetDir = lib.validateTargetDir(relativePath)
 
 	if targetDir != "" {
 		t.Errorf("getTargetDirectory() = %s; want %s", targetDir, "")
 	}
 }
 
-func TestGetUsername(t *testing.T) {
+func TestValidateUsername(t *testing.T) {
 	goodInput := "good_username"
-	goodLib := getLib(goodInput)
-	username := goodLib.collectUsername("test_host")
+	username := lib.validateUsername(goodInput)
 	if username != goodInput {
 		t.Errorf("getUsername() = %s; want %s", username, goodInput)
 	}
 	longUsername := "this_is_a_really_long_username_that_is_not_allowed"
-	longLib := getLib(longUsername)
-	username = longLib.collectUsername("test_host")
+	username = lib.validateUsername(longUsername)
 	if username != "" {
 		t.Errorf("getUsername() = %s; want %s", username, "")
 	}
 }
 
-func TestGetPrivateKey(t *testing.T) {
+func TestValidatePrivateKey(t *testing.T) {
 	goodInput := "/dev/stdout"
-	goodLib := getLib(goodInput)
-	privateKey := goodLib.collectPrivateKey()
+	privateKey := lib.validatePrivateKey(goodInput)
 	if privateKey != goodInput {
 		t.Errorf("getPrivateKey() = %s; want %s", privateKey, goodInput)
 	}
 	badInput := "~/bad/path"
-	badLib := getLib(badInput)
-	badLib.InputSource = bytes.NewBufferString(badInput)
-	privateKey = badLib.collectPrivateKey()
+	privateKey = lib.validatePrivateKey(badInput)
 	if privateKey != "" {
 		t.Errorf("getPrivateKey() = %s; want %s", privateKey, "")
 	}
@@ -134,6 +102,27 @@ func TestGetAbsoluteDirectory(t *testing.T) {
 	_, err = getAbsoluteDirectory("/dev/null")
 	if err == nil {
 		t.Errorf("Expected error, got nil")
+	}
+}
+
+func TestGetInput(t *testing.T) {
+	lib.InputSource = strings.NewReader("test")
+	input := lib.getInput("test prompt", "")
+	if input != "test" {
+		t.Errorf("getInput() = %s; want %s", input, "test")
+	}
+	lib.InputSource = strings.NewReader("")
+	input = lib.getInput("test prompt", "default")
+	if input != "default" {
+		t.Errorf("getInput() = %s; want %s", input, "default")
+	}
+}
+
+func TestFormatBytes(t *testing.T) {
+	bytes := int64(1024)
+	formattedBytes := formatBytes(bytes)
+	if formattedBytes != "1.0 KB" {
+		t.Errorf("formatBytes() = %s; want %s", formattedBytes, "1.0 KB")
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 )
 
 func main() {
-	var lib = Lib{"darsync", os.Stdin, os.Getenv("HOME")}
+	var lib = Lib{"darsync", os.Getenv("HOME"), os.Stdin}
 
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: " + lib.Name + " [check|gen]")

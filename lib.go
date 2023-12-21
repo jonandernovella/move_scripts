@@ -26,8 +26,8 @@ type FileInfo struct {
 
 type Lib struct {
 	Name        string
-	InputSource io.Reader
 	HomeDir     string
+	InputSource io.Reader
 }
 
 func (lib Lib) check() {
@@ -60,20 +60,20 @@ func (lib Lib) gen() {
 
 func (lib Lib) getDirectoryToMove() string {
 	dirToMove := ""
-	for dirToMove == "" {
-		dirToMove = lib.collectDirectoryToMove()
-	}
-	return dirToMove
-}
-
-func (lib Lib) collectDirectoryToMove() string {
 	workingDir, err := os.Getwd()
 	if err != nil {
 		fmt.Printf("Error getting working directory: %s\n", err.Error())
 		os.Exit(1)
 	}
-	dirToMove := lib.getInput("Which directory should be transferred? [default: this one]", workingDir)
-	dirToMove, err = getAbsoluteDirectory(dirToMove)
+	for dirToMove == "" {
+		dirToMove := lib.getInput("Which directory should be transferred? [default: this one]", workingDir)
+		dirToMove = lib.validateDirectoryToMove(dirToMove)
+	}
+	return dirToMove
+}
+
+func (lib Lib) validateDirectoryToMove(dirToMove string) string {
+	dirToMove, err := getAbsoluteDirectory(dirToMove)
 	if err != nil {
 		fmt.Printf("Error: %s\n", err.Error())
 		dirToMove = ""
@@ -92,7 +92,8 @@ func (lib Lib) getProjectId() string {
 func (lib Lib) getPrivateKey() string {
 	privateKeyPath := ""
 	for privateKeyPath == "" {
-		privateKeyPath = lib.collectPrivateKey()
+		privateKeyPath := lib.getInput("Which private key would you like to use?", fmt.Sprintf("%s/.ssh/id_rsa", lib.HomeDir))
+		privateKeyPath = lib.validatePrivateKey(privateKeyPath)
 	}
 	privateKeyAbsPath, err := filepath.Abs(privateKeyPath)
 	if err != nil {
@@ -102,8 +103,7 @@ func (lib Lib) getPrivateKey() string {
 	return privateKeyAbsPath
 }
 
-func (lib Lib) collectPrivateKey() string {
-	privateKeyPath := lib.getInput("Which private key would you like to use?", fmt.Sprintf("%s/.ssh/id_rsa", lib.HomeDir))
+func (lib Lib) validatePrivateKey(privateKeyPath string) string {
 	_, err := os.Stat(privateKeyPath)
 	if os.IsNotExist(err) {
 		fmt.Printf("Error: %s\n", errors.New("Private key does not exist: "+privateKeyPath))
@@ -115,13 +115,13 @@ func (lib Lib) collectPrivateKey() string {
 func (lib Lib) getTargetDirectory(targetHost string) string {
 	targetDir := ""
 	for targetDir == "" {
-		targetDir = lib.collectTargetDir(targetHost)
+		targetDir := lib.getInput("Where on "+targetHost+" should data be moved to?", "")
+		targetDir = lib.validateTargetDir(targetDir)
 	}
 	return targetDir
 }
 
-func (lib Lib) collectTargetDir(targetHost string) string {
-	targetDir := lib.getInput("Where on "+targetHost+" should data be moved to?", "")
+func (lib Lib) validateTargetDir(targetDir string) string {
 
 	isAbsolute := filepath.IsAbs(targetDir)
 
@@ -135,13 +135,13 @@ func (lib Lib) collectTargetDir(targetHost string) string {
 func (lib Lib) getUsername(targetHost string) string {
 	username := ""
 	for username == "" {
-		username = lib.collectUsername(targetHost)
+		username := lib.getInput("What is your user name on "+targetHost+"?", "")
+		lib.validateUsername(username)
 	}
 	return username
 }
 
-func (lib Lib) collectUsername(targetHost string) string {
-	username := lib.getInput("What is your user name on "+targetHost+"?", "")
+func (lib Lib) validateUsername(username string) string {
 	if len(username) > 25 {
 		fmt.Println("Error: Username must be 25 characters or less.")
 		username = ""
